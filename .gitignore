@@ -1,6 +1,4 @@
-# secrets — never commit the API key
-OPENAI_API_Key.txt
-# environment / caches
+# environment / caches (not committed)
 .venv/
 __pycache__/
 *.pyc
