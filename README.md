@@ -65,3 +65,15 @@ delivery_days_promised, delivery_days_actual, on_time`. No code changes needed.
 
 ## Tech
 Python 3.12 · `openai` (gpt-4o-mini, function calling + moderation) · `pandas` · `flask` · Jupyter.
+
+---
+
+## Fresh install (e.g. from the submission zip — `.venv` is not included)
+```bash
+cd SpendSenseAI
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt
+# then put your real OpenAI key in OPENAI_API_Key.txt (replace the placeholder)
+./.venv/bin/python app.py          # web app at http://127.0.0.1:5002
+# or: ./.venv/bin/jupyter notebook SpendSense_Chatbot.ipynb
+```

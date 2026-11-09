@@ -1,0 +1,6 @@
+openai>=1.40
+pandas>=2.0
+flask>=3.0
+notebook>=7.0
+ipykernel>=6.0
+markdown>=3.5
