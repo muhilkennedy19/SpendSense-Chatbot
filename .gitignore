@@ -1,0 +1,9 @@
+# secrets — never commit the API key
+OPENAI_API_Key.txt
+# environment / caches
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+*.zip

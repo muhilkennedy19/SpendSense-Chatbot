@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpendSense AI — Procurement Spend Analytics</title>
+<style>
+  /* ---- SAP Fiori–inspired theme ---- */
+  :root{
+    --sap-blue:#0a6ed1; --sap-blue-dark:#085caf; --shell:#354a5f;
+    --bg:#f5f6f7; --card:#ffffff; --text:#32363a; --muted:#6a6d70;
+    --border:#d9d9d9; --chip:#eaf1fb; --chip-border:#b3d1f5; --ok:#107e3e;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:"72","72full","Segoe UI",Arial,Helvetica,sans-serif;
+       display:flex;flex-direction:column;height:100vh}
+
+  /* Shell bar */
+  .shell{height:48px;background:linear-gradient(180deg,var(--sap-blue),var(--sap-blue-dark));
+         color:#fff;display:flex;align-items:center;padding:0 16px;gap:12px;
+         box-shadow:0 1px 3px rgba(0,0,0,.25);flex:0 0 auto}
+  .shell .logo{width:28px;height:28px;border-radius:6px;background:#fff;color:var(--sap-blue);
+         display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px}
+  .shell h1{font-size:16px;font-weight:700;margin:0}
+  .shell .sub{font-size:12px;opacity:.85;margin-left:2px}
+  .shell .spacer{flex:1}
+  .shell button{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);
+         border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer}
+  .shell button:hover{background:rgba(255,255,255,.28)}
+
+  /* Chat area */
+  .wrap{flex:1;display:flex;justify-content:center;overflow:hidden}
+  .panel{width:100%;max-width:860px;display:flex;flex-direction:column;padding:16px;overflow:hidden}
+  #chat{flex:1;overflow-y:auto;padding:6px 4px 14px;display:flex;flex-direction:column;gap:12px}
+
+  .msg{max-width:82%;padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.5;
+       box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  .user{align-self:flex-end;background:var(--sap-blue);color:#fff;border-bottom-right-radius:3px}
+  .bot{align-self:flex-start;background:var(--card);border:1px solid var(--border);
+       border-left:3px solid var(--sap-blue);border-bottom-left-radius:3px}
+  .bot p{margin:.3em 0}
+  .bot strong{color:var(--sap-blue-dark)}
+  .bot code{background:#eef1f4;border:1px solid #e0e3e7;border-radius:4px;padding:1px 5px;font-size:12.5px}
+  .bot table.md{border-collapse:collapse;margin:8px 0;width:100%;font-size:13px}
+  .bot table.md th{background:#eaf1fb;text-align:left;padding:6px 9px;border:1px solid #d6e4f7;color:var(--sap-blue-dark)}
+  .bot table.md td{padding:6px 9px;border:1px solid #e3e6ea}
+  .bot ul,.bot ol{margin:.3em 0;padding-left:20px}
+
+  .tools{align-self:flex-start;display:flex;flex-wrap:wrap;gap:6px;margin-top:-4px;max-width:82%}
+  .toolchip{font-size:11px;background:var(--chip);border:1px solid var(--chip-border);color:var(--sap-blue-dark);
+       border-radius:999px;padding:2px 9px;font-family:ui-monospace,Menlo,Consolas,monospace}
+
+  .typing{align-self:flex-start;color:var(--muted);font-size:13px;padding:8px 14px}
+  .typing span{display:inline-block;width:6px;height:6px;margin:0 1px;background:var(--muted);border-radius:50%;
+       animation:blink 1.2s infinite both}
+  .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+
+  /* Suggestion chips */
+  .suggest{display:flex;flex-wrap:wrap;gap:8px;padding:8px 2px}
+  .suggest button{background:var(--card);border:1px solid var(--border);border-radius:999px;
+       padding:7px 13px;font-size:12.5px;color:var(--text);cursor:pointer}
+  .suggest button:hover{border-color:var(--sap-blue);color:var(--sap-blue-dark)}
+
+  /* Input bar */
+  .inputbar{flex:0 0 auto;display:flex;gap:8px;padding:10px 2px 2px}
+  #q{flex:1;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none}
+  #q:focus{border-color:var(--sap-blue);box-shadow:0 0 0 2px rgba(10,110,209,.15)}
+  #send{background:var(--sap-blue);color:#fff;border:none;border-radius:8px;padding:0 20px;font-size:14px;
+       font-weight:600;cursor:pointer}
+  #send:hover{background:var(--sap-blue-dark)} #send:disabled{opacity:.5;cursor:default}
+  .foot{text-align:center;color:var(--muted);font-size:11px;padding:6px}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="logo">S</div>
+    <h1>SpendSense AI</h1>
+    <span class="sub">Procurement Spend Analytics</span>
+    <div class="spacer"></div>
+    <button id="reset">New Conversation</button>
+  </div>
+
+  <div class="wrap"><div class="panel">
+    <div id="chat"></div>
+    <div class="suggest" id="suggest"></div>
+    <div class="inputbar">
+      <input id="q" type="text" placeholder="Ask about suppliers, categories, maverick spend, delivery, trends…" autocomplete="off">
+      <button id="send">Send</button>
+    </div>
+    <div class="foot">SpendSense AI · gpt-4o-mini + function calling · synthetic demo data</div>
+  </div></div>
+
+<script>
+const chat = document.getElementById('chat');
+const qEl = document.getElementById('q');
+const sendBtn = document.getElementById('send');
+const INTRO = "Hi, I'm **SpendSense** — your procurement spend analytics assistant. Ask me about suppliers, categories, maverick (off-contract) spend, delivery performance, or trends.";
+const SUGGESTIONS = [
+  "Break down total spend by category",
+  "Top 5 suppliers overall",
+  "How much maverick spend by category?",
+  "Is Dell Technologies delivering on time?",
+  "Quarterly trend for Software & SaaS"
+];
+
+/* ---- tiny Markdown renderer (bold, code, lists, tables) ---- */
+function renderMarkdown(md){
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code>$1</code>');
+  const rowCells = l => l.replace(/^\s*\|/,'').replace(/\|\s*$/,'').split('|').map(c=>c.trim());
+  const lines = md.split('\n'); let html=''; let i=0;
+  while(i < lines.length){
+    const line = lines[i];
+    if(line.includes('|') && i+1 < lines.length && /-/.test(lines[i+1]) && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i+1])){
+      const head = rowCells(line); i += 2; const rows=[];
+      while(i < lines.length && lines[i].includes('|')){ rows.push(rowCells(lines[i])); i++; }
+      html += '<table class="md"><thead><tr>' + head.map(h=>'<th>'+inline(h)+'</th>').join('') +
+              '</tr></thead><tbody>' + rows.map(r=>'<tr>'+r.map(c=>'<td>'+inline(c)+'</td>').join('')+'</tr>').join('') +
+              '</tbody></table>'; continue;
+    }
+    if(/^\s*[-*]\s+/.test(line)){ const it=[];
+      while(i<lines.length && /^\s*[-*]\s+/.test(lines[i])){ it.push(lines[i].replace(/^\s*[-*]\s+/,'')); i++; }
+      html += '<ul>'+it.map(x=>'<li>'+inline(x)+'</li>').join('')+'</ul>'; continue; }
+    if(/^\s*\d+\.\s+/.test(line)){ const it=[];
+      while(i<lines.length && /^\s*\d+\.\s+/.test(lines[i])){ it.push(lines[i].replace(/^\s*\d+\.\s+/,'')); i++; }
+      html += '<ol>'+it.map(x=>'<li>'+inline(x)+'</li>').join('')+'</ol>'; continue; }
+    if(line.trim()===''){ i++; continue; }
+    html += '<p>'+inline(line)+'</p>'; i++;
+  }
+  return html;
+}
+
+function addUser(text){
+  const d = document.createElement('div'); d.className='msg user'; d.textContent=text;
+  chat.appendChild(d); scroll();
+}
+function addBot(markdown, tools){
+  const d = document.createElement('div'); d.className='msg bot'; d.innerHTML=renderMarkdown(markdown);
+  chat.appendChild(d);
+  if(tools && tools.length){
+    const t = document.createElement('div'); t.className='tools';
+    tools.forEach(tc=>{ const c=document.createElement('span'); c.className='toolchip';
+      c.textContent='🔧 '+tc.name+'('+Object.entries(tc.arguments||{}).map(([k,v])=>k+'='+JSON.stringify(v)).join(', ')+')';
+      t.appendChild(c); });
+    chat.appendChild(t);
+  }
+  scroll();
+}
+function scroll(){ chat.scrollTop = chat.scrollHeight; }
+
+let typingEl=null;
+function showTyping(){ typingEl=document.createElement('div'); typingEl.className='typing';
+  typingEl.innerHTML='<span></span><span></span><span></span>'; chat.appendChild(typingEl); scroll(); }
+function hideTyping(){ if(typingEl){ typingEl.remove(); typingEl=null; } }
+
+async function send(text){
+  const q = (text ?? qEl.value).trim(); if(!q) return;
+  addUser(q); qEl.value=''; sendBtn.disabled=true; showTyping();
+  try{
+    const r = await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});
+    const data = await r.json(); hideTyping(); addBot(data.answer||'(no answer)', data.tools);
+  }catch(e){ hideTyping(); addBot('⚠️ Could not reach the server. Is `app.py` still running?'); }
+  sendBtn.disabled=false; qEl.focus();
+}
+
+sendBtn.onclick=()=>send();
+qEl.addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
+document.getElementById('reset').onclick=async()=>{
+  await fetch('/reset',{method:'POST'}); chat.innerHTML=''; addBot(INTRO); renderSuggestions();
+};
+function renderSuggestions(){
+  const box=document.getElementById('suggest'); box.innerHTML='';
+  SUGGESTIONS.forEach(s=>{ const b=document.createElement('button'); b.textContent=s; b.onclick=()=>send(s); box.appendChild(b); });
+}
+
+// init
+addBot(INTRO); renderSuggestions(); qEl.focus();
+</script>
+</body>
+</html>

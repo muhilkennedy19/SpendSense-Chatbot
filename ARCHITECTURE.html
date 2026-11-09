@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpendSense AI — Architecture & Function-Calling Flow</title>
+<style>
+  :root{
+    --bg:#0f1221; --panel:#1a1f36; --panel2:#232a4d; --ink:#e8ecf7; --muted:#9aa4c7;
+    --user:#ffb020; --ai:#7c6cff; --tool:#ff8c42; --py:#19c3a0; --data:#36c5f0;
+    --line:#3a4374; --chip:#2b3362;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0b0e1a,#0f1221 40%);color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       line-height:1.5;padding:40px 18px 80px}
+  .wrap{max-width:1000px;margin:0 auto}
+  h1{font-size:30px;margin:0 0 4px}
+  h2{font-size:21px;margin:42px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .sub{color:var(--muted);font-size:15px;margin:0 0 8px}
+  p{font-size:15px}
+  code{background:#0c1024;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:#cdd6ff}
+  .lede{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-top:18px}
+  .lede b{color:#fff}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 6px}
+  .lg{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
+      border-radius:999px;padding:6px 14px;font-size:13px;color:var(--muted)}
+  .dot{width:12px;height:12px;border-radius:4px;display:inline-block}
+
+  .flow{display:flex;flex-direction:column;align-items:center;margin-top:10px}
+  .stage{width:100%;max-width:780px;border-radius:14px;padding:14px 18px;border:1px solid var(--line);
+         background:var(--panel);position:relative}
+  .stage .tag{position:absolute;top:-11px;left:16px;font-size:11px;font-weight:700;letter-spacing:.5px;
+         text-transform:uppercase;padding:3px 10px;border-radius:999px;color:#0b0e1a}
+  .stage h3{margin:6px 0 4px;font-size:16px}.stage p{margin:3px 0 0;font-size:13.5px;color:var(--muted)}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:#0c1024;border:1px solid var(--line);
+        border-radius:8px;padding:10px 12px;margin-top:8px;white-space:pre-wrap;color:#cdd6ff}
+  .b-user{border-left:5px solid var(--user)} .t-user{background:var(--user)}
+  .b-ai{border-left:5px solid var(--ai)} .t-ai{background:var(--ai)}
+  .b-tool{border-left:5px solid var(--tool)} .t-tool{background:var(--tool)}
+  .b-py{border-left:5px solid var(--py)} .t-py{background:var(--py)}
+  .b-data{border-left:5px solid var(--data)} .t-data{background:var(--data)}
+  .arrow{height:30px;width:2px;background:var(--line);position:relative}
+  .arrow::after{content:"";position:absolute;bottom:0;left:-4px;width:10px;height:10px;
+      border-right:2px solid var(--line);border-bottom:2px solid var(--line);transform:rotate(45deg)}
+  .arrow .lbl{position:absolute;left:12px;top:5px;white-space:nowrap;font-size:12px;color:var(--muted)}
+  .arrow.up::after{top:0;transform:rotate(225deg)}
+
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .card h4{margin:0 0 6px;font-size:15px}
+  .note{background:#1c1530;border:1px solid #4a2d6b;border-radius:12px;padding:16px 18px;margin-top:14px}
+  .note b{color:#e5c6ff}
+  @media(max-width:680px){.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>📊 SpendSense AI — Architecture & Function-Calling Flow</h1>
+  <p class="sub">Procurement Spend Analytics Assistant · ask your data in plain English</p>
+
+  <div class="lede">
+    <b>What it does:</b> You ask things like <i>“Who were my top 5 suppliers by spend in FY2024?”</i> or
+    <i>“How much maverick spend did we have in IT Hardware?”</i>. The assistant uses OpenAI
+    <b>function calling</b> to turn your question into a precise call on an analytics function,
+    runs it over the spend dataset with pandas, and answers in plain English — often with a small table.
+  </div>
+
+  <h2>Key concept (recap): what “function calling” really is</h2>
+  <div class="note">
+    <b>The AI does NOT run code.</b> It only <b>chooses</b> a function and fills in the arguments as JSON.
+    Your Python runs the function and sends the result back. Then the AI writes the human answer.
+    Think of GPT as a smart <b>receptionist</b> who fills out the right request form; your code is the
+    <b>back office</b> that actually does the work.
+  </div>
+
+  <h2>Colour legend</h2>
+  <div class="legend">
+    <span class="lg"><span class="dot" style="background:var(--user)"></span> You (question / answer)</span>
+    <span class="lg"><span class="dot" style="background:var(--ai)"></span> OpenAI GPT</span>
+    <span class="lg"><span class="dot" style="background:var(--tool)"></span> Tool call (function + args)</span>
+    <span class="lg"><span class="dot" style="background:var(--py)"></span> Python analytics</span>
+    <span class="lg"><span class="dot" style="background:var(--data)"></span> Spend dataset (CSV)</span>
+  </div>
+
+  <h2>The round-trip flow</h2>
+  <p class="sub">Notice GPT is called <b>twice</b> per question — once to pick the function, once to explain the result.</p>
+  <div class="flow">
+
+    <div class="stage b-user"><span class="tag t-user">You</span>
+      <h3>1 · Ask a question in plain English</h3>
+      <div class="mono">"Top 5 suppliers by spend in FY2024, IT Hardware only"</div>
+    </div>
+    <div class="arrow"><span class="lbl">sent with the list of available tools</span></div>
+
+    <div class="stage b-ai"><span class="tag t-ai">GPT · call #1</span>
+      <h3>2 · GPT decides which function to call</h3>
+      <p>It reads your question + the tool definitions and returns a structured <code>tool_call</code> (no prose yet).</p>
+      <div class="mono">tool_call: top_suppliers(
+   n=5, category="IT Hardware",
+   start_date="2023-10-01", end_date="2024-09-30"
+)</div>
+    </div>
+    <div class="arrow"><span class="lbl">your code reads the tool_call</span></div>
+
+    <div class="stage b-py"><span class="tag t-py">Python</span>
+      <h3>3 · Your code runs the real function</h3>
+      <p>A plain Python/pandas function filters & aggregates the dataset. <b>This is where the actual analytics happens</b> — the numbers are never invented by the AI.</p>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="stage b-data"><span class="tag t-data">Data</span>
+      <h3>4 · pandas reads the spend CSV</h3>
+      <p><code>data/procurement_spend.csv</code> — 2,600 purchase orders, 8 categories, 37 suppliers, 2 fiscal years.</p>
+    </div>
+    <div class="arrow up"><span class="lbl">result (JSON) goes back up to GPT</span></div>
+
+    <div class="stage b-tool"><span class="tag t-tool">Result</span>
+      <h3>5 · Function result handed back to GPT</h3>
+      <div class="mono">[{"supplier":"Dell Technologies","spend":4821000},
+ {"supplier":"HP Inc.","spend":3990500}, ...]</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="stage b-ai"><span class="tag t-ai">GPT · call #2</span>
+      <h3>6 · GPT turns numbers into a human answer</h3>
+      <p>Second call: GPT receives the result and writes the explanation (and can format a table).</p>
+      <div class="mono">"In FY2024, your top IT-Hardware suppliers were
+ Dell ($4.82M), HP ($3.99M), Lenovo ($3.1M)…"</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="stage b-user"><span class="tag t-user">You</span>
+      <h3>7 · You read the answer &amp; ask a follow-up</h3>
+      <p>The loop repeats; earlier turns stay in the conversation for context.</p>
+    </div>
+  </div>
+
+  <h2>The analytics tools we'll define (the “API” GPT can call)</h2>
+  <p class="sub">Each becomes a JSON tool schema (name + description + typed parameters) given to GPT, backed by a Python function.</p>
+  <table>
+    <tr><th>Tool</th><th>What it answers</th></tr>
+    <tr><td><code>get_total_spend(start_date, end_date, category, supplier, department, region)</code></td><td>"How much did we spend on X?"</td></tr>
+    <tr><td><code>top_suppliers(n, start_date, end_date, category)</code></td><td>"Top N suppliers by spend"</td></tr>
+    <tr><td><code>spend_by_category(start_date, end_date)</code></td><td>"Break down spend by category"</td></tr>
+    <tr><td><code>maverick_spend(group_by, start_date, end_date)</code></td><td>"How much off-contract / maverick spend?"</td></tr>
+    <tr><td><code>supplier_performance(supplier)</code></td><td>"Is supplier X delivering on time?"</td></tr>
+    <tr><td><code>spend_trend(period, category, supplier)</code></td><td>"Show the spend trend over time"</td></tr>
+  </table>
+
+  <h2>Dataset columns</h2>
+  <table>
+    <tr><th>Column</th><th>Meaning</th></tr>
+    <tr><td><code>po_id, po_date, fiscal_quarter</code></td><td>Purchase order id &amp; when it was raised</td></tr>
+    <tr><td><code>supplier, category, department, region</code></td><td>Who / what / which team / where</td></tr>
+    <tr><td><code>quantity, unit_price, amount, currency</code></td><td>The spend (amount = qty × unit price)</td></tr>
+    <tr><td><code>contract_id</code></td><td>Blank = <b>off-contract (maverick) spend</b></td></tr>
+    <tr><td><code>delivery_days_promised, delivery_days_actual, on_time</code></td><td>Supplier delivery performance</td></tr>
+    <tr><td><code>payment_terms, buyer</code></td><td>Net terms &amp; who bought it</td></tr>
+  </table>
+
+  <h2>How this differs from ShopAssist (and why it scores well)</h2>
+  <div class="two">
+    <div class="card">
+      <h4>ShopAssist</h4>
+      <p class="sub" style="margin:0">Rigid staged flow. The code decided the steps; GPT just chatted and we manually parsed a dictionary out of its text.</p>
+    </div>
+    <div class="card">
+      <h4>SpendSense (function calling)</h4>
+      <p class="sub" style="margin:0"><b>GPT dynamically chooses</b> which function to run and extracts typed arguments itself — no fragile text parsing. This is exactly the capability the assignment rewards.</p>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:22px">
+    <b>Build order:</b> ① data (done) → ② this diagram (done) → ③ Python analytics functions + tool schemas →
+    ④ the function-calling chat loop in a notebook → ⑤ test end-to-end → ⑥ optional web UI → ⑦ project report.
+  </div>
+
+</div>
+</body>
+</html>
