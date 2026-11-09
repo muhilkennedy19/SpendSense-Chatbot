@@ -1,3 +1,5 @@
+# secrets — the REAL key lives only on disk, never committed
+OPENAI_API_Key.txt
 # environment / caches (not committed)
 .venv/
 __pycache__/
